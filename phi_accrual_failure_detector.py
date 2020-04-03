@@ -77,7 +77,7 @@ class PhiAccrualFailureDetector:
         self.threshold = threshold
         self.min_stddev_millis = min_std_deviation_millis
         self.acceptable_heartbeat_pause_millis = acceptable_heartbeat_pause_millis
-        self.last_timestamp = None
+        self.last_timestamp = datetime.now()
         self.heatbeat_history = HeartbeatHistory(max_sample_size)
         stddev_millis = first_heartbeat_estimate_millis / 4
         self.heatbeat_history.add(first_heartbeat_estimate_millis - stddev_millis)
