@@ -26,7 +26,6 @@ class HeartbeatHistory:
     def add(self, interval):
         if self.intervals.qsize() >= self.max_sample_size:
             # Need to drop oldest sample
-            self.intervals.put(interval)
             head = self.intervals.get()
             self.interval_sum -= head
             self.squared_interval_sum -= head ** 2
@@ -93,6 +92,7 @@ class PhiAccrualFailureDetector:
         timediff_millis = (timestamp - self.last_timestamp).total_seconds() * 1000
         mean_millis = self.heatbeat_history.mean() + self.acceptable_heartbeat_pause_millis
         stddev_millis = self.ensure_valid_stddev(self.heatbeat_history.std_deviation())
+        print(mean_millis, stddev_millis)
 
         y = (timediff_millis - mean_millis) / stddev_millis
         e = math.exp(-y * (1.5976 + 0.070566 * y * y))
