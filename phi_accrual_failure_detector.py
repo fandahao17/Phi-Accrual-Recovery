@@ -1,4 +1,7 @@
 import math
+import time
+import socket
+import threading
 from datetime import datetime
 import queue
 
@@ -71,8 +74,12 @@ class PhiAccrualFailureDetector:
       to this duration, with a with rather high standard deviation (since environment is unknown
       in the beginning)
     """
-    def __init__(self, threshold, max_sample_size, min_std_deviation_millis,
-                 acceptable_heartbeat_pause_millis, first_heartbeat_estimate_millis):
+    def __init__(self,
+                 threshold=16,
+                 max_sample_size=20,
+                 min_std_deviation_millis=200,
+                 acceptable_heartbeat_pause_millis=0,
+                 first_heartbeat_estimate_millis=1000):
         self.threshold = threshold
         self.min_stddev_millis = min_std_deviation_millis
         self.acceptable_heartbeat_pause_millis = acceptable_heartbeat_pause_millis
@@ -101,12 +108,56 @@ class PhiAccrualFailureDetector:
         else:
             return -math.log10(1 - 1 / (1 + e))
 
-    def is_available(self, timestamp):
-        return self.phi(timestamp) < self.threshold
+    def is_available(self):
+        return self.phi(datetime.now()) < self.threshold
 
     def heartbeat(self, timestamp):
         last_timestamp = self.last_timestamp
         self.last_timestamp = timestamp
         if last_timestamp is not None:
-            if self.is_available(timestamp):
+            if self.is_available():
                 self.heatbeat_history.add((timestamp - last_timestamp).total_seconds() * 1000)
+
+
+class DetectorManager:
+    """Manages all failure detectors"""
+    def __init__(self, broadcast_address="255.255.255.255"):
+        self.detectors = {}
+        self.server = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        # Enable broadcasting mode
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+        listenfd = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        listenfd.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        listenfd.bind(("", 37021))
+
+        def listen_fn():
+            while True:
+                data, addr = listenfd.recvfrom(1024)
+                if addr[0] in self.detectors:
+                    self.detectors[addr[0]].heartbeat(datetime.now())
+
+        def server_fn():
+            while True:
+                print(self.check_status())
+                time.sleep(1)
+                self.server.sendto(b"", (broadcast_address, 37020))
+
+        threading.Thread(target=listen_fn).start()
+        threading.Thread(target=server_fn).start()
+
+    def add_node(self, ip):
+        detector = PhiAccrualFailureDetector()
+        self.detectors[ip] = detector
+
+    def heartbeat(self, ip):
+        self.detectors[ip].heartbeat(datetime.now())
+
+    def check_status(self):
+        res = {}
+        for ip in self.detectors:
+            res[ip] = self.detectors[ip].is_available()
+
+        return res
