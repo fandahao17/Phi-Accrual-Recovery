@@ -99,17 +99,21 @@ class PhiAccrualFailureDetector:
         timediff_millis = (timestamp - self.last_timestamp).total_seconds() * 1000
         mean_millis = self.heatbeat_history.mean() + self.acceptable_heartbeat_pause_millis
         stddev_millis = self.ensure_valid_stddev(self.heatbeat_history.std_deviation())
-        print(mean_millis, stddev_millis)
+        # print(mean_millis, stddev_millis)
 
+        # print("timediff: {}, mean: {}, stddev: {}".format(timediff_millis, mean_millis, stddev_millis))
         y = (timediff_millis - mean_millis) / stddev_millis
         e = math.exp(-y * (1.5976 + 0.070566 * y * y))
+        # print("e: {}".format(e))
         if timediff_millis > mean_millis:
             return -math.log10(e / (1 + e))
         else:
             return -math.log10(1 - 1 / (1 + e))
 
     def is_available(self):
-        return self.phi(datetime.now()) < self.threshold
+        res = self.phi(datetime.now())
+        # print(res)
+        return res < self.threshold
 
     def heartbeat(self, timestamp):
         last_timestamp = self.last_timestamp
@@ -141,8 +145,8 @@ class DetectorManager:
 
         def server_fn():
             while True:
-                print(self.check_status())
                 time.sleep(1)
+                print(self.check_status())
                 self.server.sendto(b"", (broadcast_address, 37020))
 
         threading.Thread(target=listen_fn).start()
