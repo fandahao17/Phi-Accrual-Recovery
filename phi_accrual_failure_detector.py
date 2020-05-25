@@ -89,12 +89,14 @@ class PhiAccrualFailureDetector:
         self.reinit()
 
     def reinit(self):
+        print('Reinited!')
+        self.last_timestamp = None
         self.heatbeat_history = HeartbeatHistory(self.max_sample_size)
-        stddev_millis = self.first_heartbeat_estimate_millis / 4
+        stddev_millis = self.first_hb / 4
         self.heatbeat_history.add(
-            self.first_heartbeat_estimate_millis - stddev_millis)
+            self.first_hb - stddev_millis)
         self.heatbeat_history.add(
-            self.first_heartbeat_estimate_millis + stddev_millis)
+            self.first_hb + stddev_millis)
 
 
     def ensure_valid_stddev(self, stddev_millis):
@@ -104,12 +106,13 @@ class PhiAccrualFailureDetector:
         if self.last_timestamp is None:
             return 0
 
+        # print(timestamp, self.last_timestamp)
         timediff_millis = (timestamp - self.last_timestamp).total_seconds() * 1000
         mean_millis = self.heatbeat_history.mean() + self.acceptable_heartbeat_pause_millis
         stddev_millis = self.ensure_valid_stddev(self.heatbeat_history.std_deviation())
         # print(mean_millis, stddev_millis)
 
-        # print("timediff: {}, mean: {}, stddev: {}".format(timediff_millis, mean_millis, stddev_millis))
+        print("timediff: {}, mean: {}, stddev: {}".format(timediff_millis, mean_millis, stddev_millis))
         y = (timediff_millis - mean_millis) / stddev_millis
         e = math.exp(-y * (1.5976 + 0.070566 * y * y))
         # print("e: {}".format(e))
@@ -119,13 +122,18 @@ class PhiAccrualFailureDetector:
             return -math.log10(1 - 1 / (1 + e))
 
     def is_available(self, time):
-        return self.phi(time) < self.threshold
+        fi = self.phi(time)
+        print(f'PHI: {fi}')
+        return fi < self.threshold
 
     def heartbeat(self, timestamp):
-        last_timestamp = self.last_timestamp
+        try:
+            last_timestamp = self.last_timestamp
+        except AttributeError:
+            last_timestamp = None
         self.last_timestamp = timestamp
         if last_timestamp is not None:
-            if self.is_available():
+            if self.is_available(timestamp):
                 self.heatbeat_history.add(
                     (timestamp - last_timestamp).total_seconds() * 1000)
 

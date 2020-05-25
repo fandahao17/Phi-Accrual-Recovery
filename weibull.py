@@ -2,17 +2,20 @@ import math
 
 
 class WeibullWindow():
-    def __init__(self, scale=20 * 60, initk=100 * 60,
+    def __init__(self, scale=20 * 60, inittime=100 * 60,
                  window_size=3, threshold=0.6):
         self.scale = scale
-        self.k = initk
+        self.k = scale / inittime
         self.window = []
         self.window_size = window_size
         self.threshold = threshold
         self.is_on = False
 
     def weibull(self, x):
-        return math.exp((-x / self.scale) ** self.k)
+        print(x, self.scale, self.k)
+        score = math.exp(-(x / self.scale) ** self.k)
+        print(f'WEIBULL SCORE: {score}')
+        return score
 
     def started(self, time):
         self.ontime = time
@@ -24,8 +27,8 @@ class WeibullWindow():
             self.window.remove(self.window[0])
 
         avg = sum(self.window) / len(self.window)
-        self.k = avg / self.scale
+        self.k = self.scale / avg
         self.is_on = False
 
     def is_stable(self, time):
-        return self.weibull(time) < self.threshold
+        return self.weibull((time - self.ontime).total_seconds()) < self.threshold
