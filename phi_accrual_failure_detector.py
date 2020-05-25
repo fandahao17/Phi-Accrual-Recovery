@@ -75,19 +75,27 @@ class PhiAccrualFailureDetector:
       in the beginning)
     """
     def __init__(self,
-                 threshold=16,
-                 max_sample_size=20,
+                 threshold=8,
+                 max_sample_size=200,
                  min_std_deviation_millis=200,
                  acceptable_heartbeat_pause_millis=0,
                  first_heartbeat_estimate_millis=1000):
         self.threshold = threshold
         self.min_stddev_millis = min_std_deviation_millis
         self.acceptable_heartbeat_pause_millis = acceptable_heartbeat_pause_millis
-        self.last_timestamp = datetime.now()
-        self.heatbeat_history = HeartbeatHistory(max_sample_size)
-        stddev_millis = first_heartbeat_estimate_millis / 4
-        self.heatbeat_history.add(first_heartbeat_estimate_millis - stddev_millis)
-        self.heatbeat_history.add(first_heartbeat_estimate_millis + stddev_millis)
+        self.max_sample_size = max_sample_size
+        self.first_hb = first_heartbeat_estimate_millis
+        # self.last_timestamp = datetime.now()
+        self.reinit()
+
+    def reinit(self):
+        self.heatbeat_history = HeartbeatHistory(self.max_sample_size)
+        stddev_millis = self.first_heartbeat_estimate_millis / 4
+        self.heatbeat_history.add(
+            self.first_heartbeat_estimate_millis - stddev_millis)
+        self.heatbeat_history.add(
+            self.first_heartbeat_estimate_millis + stddev_millis)
+
 
     def ensure_valid_stddev(self, stddev_millis):
         return max(stddev_millis, self.min_stddev_millis)
@@ -110,17 +118,16 @@ class PhiAccrualFailureDetector:
         else:
             return -math.log10(1 - 1 / (1 + e))
 
-    def is_available(self):
-        res = self.phi(datetime.now())
-        # print(res)
-        return res < self.threshold
+    def is_available(self, time):
+        return self.phi(time) < self.threshold
 
     def heartbeat(self, timestamp):
         last_timestamp = self.last_timestamp
         self.last_timestamp = timestamp
         if last_timestamp is not None:
             if self.is_available():
-                self.heatbeat_history.add((timestamp - last_timestamp).total_seconds() * 1000)
+                self.heatbeat_history.add(
+                    (timestamp - last_timestamp).total_seconds() * 1000)
 
 
 class DetectorManager:
@@ -134,7 +141,6 @@ class DetectorManager:
 
         listenfd = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        listenfd.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         listenfd.bind(("", 37021))
 
         def listen_fn():
@@ -162,6 +168,6 @@ class DetectorManager:
     def check_status(self):
         res = {}
         for ip in self.detectors:
-            res[ip] = self.detectors[ip].is_available()
+            res[ip] = self.detectors[ip].is_available(datetime.now())
 
         return res
