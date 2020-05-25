@@ -87,6 +87,7 @@ class PhiAccrualFailureDetector:
         self.first_hb = first_heartbeat_estimate_millis
         # self.last_timestamp = datetime.now()
         self.reinit()
+        self.is_on = True
 
     def reinit(self):
         print('Reinited!')
@@ -122,11 +123,16 @@ class PhiAccrualFailureDetector:
             return -math.log10(1 - 1 / (1 + e))
 
     def is_available(self, time):
+        if not self.is_on:
+            return False
         fi = self.phi(time)
-        print(f'PHI: {fi}')
+        if fi >= self.threshold:
+            self.is_on = False
+        # print(f'PHI: {fi}')
         return fi < self.threshold
 
     def heartbeat(self, timestamp):
+        self.is_on = True
         try:
             last_timestamp = self.last_timestamp
         except AttributeError:

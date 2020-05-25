@@ -3,7 +3,7 @@ import math
 
 class WeibullWindow():
     def __init__(self, scale=20 * 60, inittime=100 * 60,
-                 window_size=3, threshold=0.6):
+                 window_size=2, threshold=0.6):
         self.scale = scale
         self.k = scale / inittime
         self.window = []
@@ -12,9 +12,9 @@ class WeibullWindow():
         self.is_on = False
 
     def weibull(self, x):
-        print(x, self.scale, self.k)
+        # print(x, self.scale, self.k)
         score = math.exp(-(x / self.scale) ** self.k)
-        print(f'WEIBULL SCORE: {score}')
+        # print(f'WEIBULL SCORE: {score}')
         return score
 
     def started(self, time):

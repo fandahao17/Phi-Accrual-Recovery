@@ -27,7 +27,7 @@ class ColdStartFD:
                 return True
             else:
                 # Must have crashed
-                print('Crash on stable!')
+                # print('Crash on stable!')
                 self.phi_accrual.reinit()
                 self.is_on = False
                 self.stable = False
@@ -40,7 +40,7 @@ class ColdStartFD:
                     self.stable = True
             else:
                 # Must have crashed
-                print('Crash unstable!')
+                # print('Crash unstable!')
                 self.phi_accrual.reinit()
                 self.is_on = False
                 self.weibull.failed(time)
